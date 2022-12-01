@@ -35,7 +35,12 @@ impl Vm {
     }
 
     pub fn interpret(&mut self) {
-        while self.curr.reduce(&self.pattern_space) {}
+        //self.print(&self.curr);
+        //println!();
+        while self.curr.reduce(&self.pattern_space) {
+            //self.print(&self.curr);
+            //println!();
+        }
         self.print(&self.curr);
         println!();
     }
