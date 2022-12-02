@@ -17,7 +17,6 @@ pub(crate) enum Term {
 impl Term {
     pub(crate) fn reduce(&mut self, pattern_space: &[Pattern]) -> bool {
         match self {
-            Term::Abs(.., b) => b.reduce(pattern_space),
             Term::Struct(a) => {
                 let len = a.len();
                 let changed = a.iter_mut().fold(false, |a, i| i.reduce(pattern_space) | a);
