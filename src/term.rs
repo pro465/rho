@@ -39,7 +39,7 @@ impl Term {
                         return self.make_stk();
                     }
 
-                    let res = a.iter_mut().fold(false, |r, i| i.reduce(pattern_space) | r);
+                    let res = a[0].reduce(pattern_space);
 
                     if is_val_rho_delta(&a[0]) {
                         return match &mut **f {
