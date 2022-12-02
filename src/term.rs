@@ -16,10 +16,8 @@ pub(crate) enum Term {
 
 impl Term {
     pub(crate) fn reduce(&mut self, pattern_space: &[Pattern]) -> bool {
-        use std::mem::{replace, take};
-
         match self {
-            Term::Abs(_, _, b) => b.reduce(pattern_space),
+            Term::Abs(.., b) => b.reduce(pattern_space),
             Term::Struct(a) => {
                 let len = a.len();
                 let changed = a.iter_mut().fold(false, |a, i| i.reduce(pattern_space) | a);
@@ -34,7 +32,7 @@ impl Term {
                 if !f.reduce(pattern_space) {
                     if let Term::App(_, a_) = &mut **f {
                         a_.append(a);
-                        *self = replace(f, Term::stk());
+                        *self = f.take();
                         return true;
                     }
 
@@ -48,51 +46,48 @@ impl Term {
                         return match &mut **f {
                             Term::Abs(p, n, b) => {
                                 apply(&pattern_space[*p], *n, b, a.remove(0));
-                                **f = replace(&mut **b, Term::stk());
+                                **f = b.take();
 
                                 if a.is_empty() {
-                                    *self = replace(f, Term::stk());
+                                    *self = f.take();
                                 }
 
                                 true
                             }
                             Term::Struct(s) => {
-                                s.iter_mut().for_each(|i| {
-                                    *i = Term::App(
-                                        Box::new(replace(&mut *i, Term::stk())),
-                                        a.clone(),
-                                    )
-                                });
-                                *self = replace(f, Term::stk());
+                                s.iter_mut()
+                                    .for_each(|i| *i = Term::App(Box::new(i.take()), a.clone()));
+                                *self = f.take();
                                 true
                             }
                             _ => res,
                         };
                     }
 
-                    let mut a_0 = a.remove(0);
+                    let mut a_0 = a[0].take();
 
                     if is_val_gamma(&a_0) {
                         if let Term::Struct(s) = &mut a_0 {
+                            a.remove(0);
                             s.iter_mut().for_each(|i| {
                                 *i = Term::App(
                                     f.clone(),
-                                    std::iter::once(replace(&mut *i, Term::stk()))
+                                    std::iter::once(i.take())
                                         .chain(a.iter().map(Clone::clone))
                                         .collect(),
                                 )
                             });
                             *f = Box::new(a_0);
                             if a.is_empty() {
-                                *self = replace(f, Term::stk());
+                                *self = f.take();
                             }
                             true
                         } else {
-                            a.insert(0, a_0);
+                            a[0] = a_0;
                             res
                         }
                     } else {
-                        a.insert(0, a_0);
+                        a[0] = a_0;
                         res
                     }
                 } else {
@@ -101,6 +96,11 @@ impl Term {
             }
             _ => false,
         }
+    }
+
+    fn take(&mut self) -> Term {
+        use std::mem::replace;
+        replace(self, Term::stk())
     }
 
     fn make_stk(&mut self) -> bool {
