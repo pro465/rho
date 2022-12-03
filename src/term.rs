@@ -30,7 +30,7 @@ impl Term {
             Term::App(f, a) => {
                 if !f.reduce(pattern_space) {
                     if let Term::App(_, a_) = &mut **f {
-                        a_.append(a);
+                        a.append(a_);
                         *self = f.take();
                         return true;
                     }
@@ -39,12 +39,13 @@ impl Term {
                         return self.make_stk();
                     }
 
-                    let res = a[0].reduce(pattern_space);
+                    let a_first = a.last_mut().unwrap();
+                    let res = a_first.reduce(pattern_space);
 
-                    if is_val_rho_delta(&a[0]) {
+                    if is_val_rho_delta(a_first) {
                         return match &mut **f {
                             Term::Abs(p, n, b) => {
-                                apply(&pattern_space[*p], *n, b, a.remove(0));
+                                apply(&pattern_space[*p], *n, b, a.pop().unwrap());
                                 **f = b.take();
 
                                 if a.is_empty() {
@@ -63,30 +64,29 @@ impl Term {
                         };
                     }
 
-                    let mut a_0 = a[0].take();
+                    if is_val_gamma(a.last().unwrap()) {
+                        let mut a_first = a.pop().unwrap();
 
-                    if is_val_gamma(&a_0) {
-                        if let Term::Struct(s) = &mut a_0 {
-                            a.remove(0);
+                        if let Term::Struct(s) = &mut a_first {
                             s.iter_mut().for_each(|i| {
                                 *i = Term::App(
                                     f.clone(),
-                                    std::iter::once(i.take())
-                                        .chain(a.iter().map(Clone::clone))
+                                    a.iter()
+                                        .map(Clone::clone)
+                                        .chain(std::iter::once(i.take()))
                                         .collect(),
                                 )
                             });
-                            *f = Box::new(a_0);
+                            *f = Box::new(a_first);
                             if a.is_empty() {
                                 *self = f.take();
                             }
                             true
                         } else {
-                            a[0] = a_0;
+                            a.push(a_first);
                             res
                         }
                     } else {
-                        a[0] = a_0;
                         res
                     }
                 } else {
@@ -122,7 +122,7 @@ fn is_val<const C: bool>(t: &Term) -> bool {
         Term::App(a, b) => {
             (match &**a {
                 Term::K(_) => true,
-                Term::App(..) => is_val::<C>(a),
+                Term::App(..) => false,
                 _ => false,
             }) && b.iter().all(is_val::<C>)
         }

@@ -21,7 +21,7 @@ pub(crate) fn parse_term(
     match iter.next().unwrap() {
         b'`' => match parse_term(pspace, iter) {
             PTerm::App(f, mut a) => {
-                a.push(parse_term(pspace, iter));
+                a.insert(0, parse_term(pspace, iter));
                 PTerm::App(f, a)
             }
             x => PTerm::App(Box::new(x), vec![parse_term(pspace, iter)]),
@@ -51,7 +51,7 @@ fn parse_pattern(iter: &mut (impl Iterator<Item = u8> + Clone)) -> (usize, PPatt
         b'`' => match parse_pattern(iter) {
             (n1, PPattern::App(k, mut b)) => {
                 let (n2, p) = parse_pattern(iter);
-                b.push(p);
+                b.insert(0, p);
                 (n1 + n2, PPattern::App(k, b))
             }
 
@@ -61,7 +61,7 @@ fn parse_pattern(iter: &mut (impl Iterator<Item = u8> + Clone)) -> (usize, PPatt
                 (n, PPattern::App(k, vec![p]))
             }
 
-            _ => panic!("invalid syntax"),
+            _ => panic!("invalid syntax: patterns only support applications to constants"),
         },
         x if x.is_ascii_uppercase() => (0, PPattern::K(parse_ident(x, iter))),
         x if x.is_ascii_lowercase() => (1, PPattern::Var(parse_ident(x, iter))),
